@@ -28,8 +28,21 @@
 #
 # Copyright (c) 2021 ETH Zurich, Nikita Rudin
 
-from .helpers import class_to_dict, get_load_path, get_args, export_policy_as_jit, set_seed, update_class_from_dict
-from .task_registry import task_registry
+from .helpers import (
+    class_to_dict,
+    collect_runtime_report,
+    export_policy_as_jit,
+    get_load_path,
+    get_args,
+    has_isaaclab,
+    has_legacy_isaacgym,
+    require_legacy_isaacgym,
+    set_seed,
+    update_class_from_dict,
+)
 from .logger import Logger
-from .math import *
-from .terrain import Terrain
+from .task_registry import task_registry
+
+if has_legacy_isaacgym():
+    from .math import *
+    from .terrain import Terrain

@@ -29,15 +29,23 @@
 # Copyright (c) 2021 ETH Zurich, Nikita Rudin
 
 from legged_gym import LEGGED_GYM_ROOT_DIR, LEGGED_GYM_ENVS_DIR
-from legged_gym.envs.a1.a1_config import A1RoughCfg, A1RoughCfgPPO
-from .base.legged_robot import LeggedRobot
-from .a1.a1_config import A1RoughCfg, A1RoughCfgPPO
-from .a1.a1_amp_config import A1AMPCfg, A1AMPCfgPPO
-
-
 import os
 
 from legged_gym.utils.task_registry import task_registry
 
-task_registry.register( "a1", LeggedRobot, A1RoughCfg(), A1RoughCfgPPO() )
-task_registry.register( "a1_amp", LeggedRobot, A1AMPCfg(), A1AMPCfgPPO() )
+LEGACY_ISAACGYM_IMPORT_ERROR = None
+
+try:
+    from .base.legged_robot import LeggedRobot
+    from .a1.a1_amp_config import A1AMPCfg, A1AMPCfgPPO
+    from .a1.a1_config import A1RoughCfg, A1RoughCfgPPO
+except ModuleNotFoundError as exc:
+    LEGACY_ISAACGYM_IMPORT_ERROR = exc
+    LeggedRobot = None
+    A1RoughCfg = None
+    A1RoughCfgPPO = None
+    A1AMPCfg = None
+    A1AMPCfgPPO = None
+else:
+    task_registry.register("a1", LeggedRobot, A1RoughCfg(), A1RoughCfgPPO())
+    task_registry.register("a1_amp", LeggedRobot, A1AMPCfg(), A1AMPCfgPPO())

@@ -11,21 +11,78 @@ Project website: https://bit.ly/3hpvbD6
 Paper: https://drive.google.com/file/d/1kFm79nMmrc0ZIiH0XO8_HV-fj73agheO/view?usp=sharing
 
 ### Installation ###
-1. Create a new python virtual env with python 3.6, 3.7 or 3.8 (3.8 recommended). i.e. with conda:
-    - `conda create -n amp_hw python==3.8`
-    - `conda activate amp_hw`
-2. Install pytorch 1.10 with cuda-11.3:
-    - `pip3 install torch==1.10.0+cu113 torchvision==0.11.1+cu113 tensorboard==2.8.0 pybullet==3.2.1 opencv-python==4.5.5.64 torchaudio==0.10.0+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html`
-3. Install Isaac Gym
-   - Download and install Isaac Gym Preview 3 (Preview 2 will not work!) from https://developer.nvidia.com/isaac-gym
-   - `cd isaacgym/python && pip install -e .`
-   - Try running an example `cd examples && python 1080_balls_of_solitude.py`
-   - For troubleshooting check docs `isaacgym/docs/index.html`)
-4. Install rsl_rl (PPO implementation)
-   - Clone this repository
-   -  `cd AMP_for_hardware/rsl_rl && pip install -e .` 
-5. Install legged_gym
+
+This repository now has two supported runtime tracks:
+
+1. `legacy_isaacgym`
+   - Keeps the original Isaac Gym Preview 3 workflow intact for older systems.
+2. `isaaclab`
+   - Recommended for RTX 5090 / Blackwell-class GPUs and modern CUDA 12-era systems.
+
+#### Recommended: RTX 5090 / Isaac Lab path
+
+1. Create a modern environment:
+   - `conda create -n amp_hw python==3.10`
+   - `conda activate amp_hw`
+2. Install a CUDA 12.x PyTorch build:
+   - `pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124`
+3. Install Isaac Lab following the official Isaac Lab instructions for your platform.
+4. Install this repository:
+   - `cd AMP_for_hardware/rsl_rl && pip install -e .`
    - `cd ../ && pip install -e .`
+5. Run the runtime preflight:
+   - `python legged_gym/scripts/check_compat.py`
+
+#### Legacy Isaac Gym path
+
+1. Create a legacy environment:
+   - `conda create -n amp_hw_legacy python==3.8`
+   - `conda activate amp_hw_legacy`
+2. Install PyTorch 1.10 with CUDA 11.3:
+   - `pip3 install torch==1.10.0+cu113 torchvision==0.11.1+cu113 tensorboard==2.8.0 pybullet==3.2.1 opencv-python==4.5.5.64 torchaudio==0.10.0+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html`
+3. Install Isaac Gym Preview 3:
+   - Download from https://developer.nvidia.com/isaac-gym
+   - `cd isaacgym/python && pip install -e .`
+4. Install this repository:
+   - `cd AMP_for_hardware/rsl_rl && pip install -e .`
+   - `cd ../ && pip install -e .[legacy_isaacgym]`
+
+### RTX 5090 / Isaac Lab status ###
+
+- RTX 5090 support requires a modern CUDA 12-era stack. The original PyTorch `1.10` + CUDA `11.3` instructions are not a viable Blackwell setup.
+- The original simulation environment in this repo is still implemented against Isaac Gym Preview 3 APIs.
+- To unblock migration, the repository now includes `rsl_rl/rsl_rl/env/isaaclab_amp_vecenv_wrapper.py`, which adapts an Isaac Lab-style vector environment to the custom AMP runner used here.
+- The remaining work for a full Isaac Lab port is environment-side:
+  - expose policy and critic observations from an Isaac Lab Unitree A1 environment,
+  - emit `amp_obs`, `terminal_amp_obs`, and `reset_env_ids`,
+  - wrap that environment with `IsaacLabAmpVecEnvWrapper`,
+  - feed it into the existing `AMPOnPolicyRunner`.
+
+This means the AMP training stack is now much easier to reuse on Isaac Lab, but the old Isaac Gym A1 environment itself has not yet been rewritten into native Isaac Lab task code.
+
+### Isaac Lab A1 adapter ###
+
+This repository now includes a concrete A1 adapter in [legged_gym/isaaclab/a1_amp_env.py](legged_gym/isaaclab/a1_amp_env.py) and an Isaac Lab training entrypoint in [legged_gym/scripts/train_isaaclab.py](legged_gym/scripts/train_isaaclab.py).
+
+Default target:
+
+- `Isaac-Velocity-Flat-Unitree-A1-v0`
+
+Example launch:
+
+- `python legged_gym/scripts/train_isaaclab.py --task Isaac-Velocity-Flat-Unitree-A1-v0 --num_envs 4096 --rl_device cuda:0 --headless`
+
+Adapter behavior:
+
+- reconstructs the old AMP observation layout from Isaac Lab A1 state,
+- uses the repository's A1 URDF to recover joint limits for AMP std clamping,
+- preserves the legacy AMP policy/critic observation shapes (`42` / `48`) expected by the custom runner.
+
+Current assumption:
+
+- the Isaac Lab task exposes A1 joint state, base velocity, gravity projection, commands, and root height either through observation dictionaries, extras, or the unwrapped robot state tensors.
+
+If your Isaac Lab version exposes different field names, update the candidate lookup paths in `A1IsaacLabAmpAdapter`.
 
 ### CODE STRUCTURE ###
 1. Each environment is defined by an env file (`legged_robot.py`) and a config file (`legged_robot_config.py`). The config file contains two classes: one conatianing all the environment parameters (`LeggedRobotCfg`) and one for the training parameters (`LeggedRobotCfgPPo`).  

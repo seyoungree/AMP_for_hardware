@@ -30,13 +30,41 @@
 
 import os
 import copy
+import importlib.util
+import sys
 import torch
 import numpy as np
 import random
-from isaacgym import gymapi
-from isaacgym import gymutil
 
 from legged_gym import LEGGED_GYM_ROOT_DIR, LEGGED_GYM_ENVS_DIR
+
+try:
+    from isaacgym import gymapi
+    from isaacgym import gymutil
+except ModuleNotFoundError:
+    gymapi = None
+    gymutil = None
+
+
+def has_legacy_isaacgym() -> bool:
+    return gymapi is not None and gymutil is not None
+
+
+def has_isaaclab() -> bool:
+    return any(
+        importlib.util.find_spec(name) is not None
+        for name in ("isaaclab", "omni.isaac.lab")
+    )
+
+
+def require_legacy_isaacgym(feature: str):
+    if has_legacy_isaacgym():
+        return
+    raise ModuleNotFoundError(
+        f"{feature} requires the legacy Isaac Gym package, but `isaacgym` is not "
+        "installed. For RTX 5090 / Blackwell systems, prefer the Isaac Lab path "
+        "described in the README."
+    )
 
 def class_to_dict(obj) -> dict:
     if not  hasattr(obj,"__dict__"):
@@ -77,6 +105,7 @@ def set_seed(seed):
     torch.cuda.manual_seed_all(seed)
 
 def parse_sim_params(args, cfg):
+    require_legacy_isaacgym("Simulation parameter parsing")
     # code from Isaac Gym Preview 2
     # initialize sim params
     sim_params = gymapi.SimParams()
@@ -150,6 +179,7 @@ def update_cfg_from_args(env_cfg, cfg_train, args):
     return env_cfg, cfg_train
 
 def get_args():
+    require_legacy_isaacgym("Legacy Isaac Gym CLI parsing")
     custom_parameters = [
         {"name": "--task", "type": str, "default": "anymal_c_flat", "help": "Resume training or start testing from a checkpoint. Overrides config file if provided."},
         {"name": "--resume", "action": "store_true", "default": False,  "help": "Resume training from a checkpoint"},
@@ -176,6 +206,51 @@ def get_args():
     if args.sim_device=='cuda':
         args.sim_device += f":{args.sim_device_id}"
     return args
+
+
+def collect_runtime_report():
+    report = {
+        "python": sys.version.split()[0],
+        "torch": torch.__version__,
+        "torch_cuda": torch.version.cuda,
+        "cuda_available": torch.cuda.is_available(),
+        "legacy_isaacgym": has_legacy_isaacgym(),
+        "isaaclab": has_isaaclab(),
+        "gpus": [],
+        "warnings": [],
+    }
+
+    if torch.cuda.is_available():
+        for index in range(torch.cuda.device_count()):
+            props = torch.cuda.get_device_properties(index)
+            capability = f"{props.major}.{props.minor}"
+            report["gpus"].append(
+                {
+                    "index": index,
+                    "name": props.name,
+                    "capability": capability,
+                    "memory_gb": round(props.total_memory / (1024 ** 3), 2),
+                }
+            )
+            if "5090" in props.name or props.major >= 12:
+                if torch.version.cuda is None or int(torch.version.cuda.split(".")[0]) < 12:
+                    report["warnings"].append(
+                        "Detected an RTX 5090 / Blackwell-class GPU, but the current "
+                        "PyTorch build is not CUDA 12.x."
+                    )
+                if not has_isaaclab():
+                    report["warnings"].append(
+                        "Detected an RTX 5090 / Blackwell-class GPU. Legacy Isaac Gym "
+                        "Preview 3 is not the recommended runtime; use Isaac Lab."
+                    )
+
+    if has_legacy_isaacgym() and report["torch_cuda"] is not None and int(report["torch_cuda"].split(".")[0]) < 12:
+        report["warnings"].append(
+            "Legacy Isaac Gym is present, but this repository now targets modern "
+            "CUDA 12-era stacks for RTX 5090 compatibility."
+        )
+
+    return report
 
 def export_policy_as_jit(actor_critic, path):
     if hasattr(actor_critic, 'memory_a'):

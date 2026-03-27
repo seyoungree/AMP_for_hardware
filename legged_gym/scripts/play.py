@@ -31,9 +31,8 @@
 from legged_gym import LEGGED_GYM_ROOT_DIR
 import os
 
-import isaacgym
 from legged_gym.envs import *
-from legged_gym.utils import  get_args, export_policy_as_jit, task_registry, Logger
+from legged_gym.utils import Logger, export_policy_as_jit, get_args, require_legacy_isaacgym, task_registry
 
 import numpy as np
 import torch
@@ -119,6 +118,9 @@ def play(args):
             logger.print_rewards()
 
 if __name__ == '__main__':
+    require_legacy_isaacgym("The legacy Isaac Gym play entrypoint")
+    import isaacgym  # noqa: F401
+
     EXPORT_POLICY = True
     RECORD_FRAMES = False
     MOVE_CAMERA = False
