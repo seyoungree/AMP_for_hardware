@@ -29,4 +29,3 @@
 # Copyright (c) 2021 ETH Zurich, Nikita Rudin
 
 from .vec_env import VecEnv
-from .isaaclab_amp_vecenv_wrapper import IsaacLabAmpVecEnvWrapper
