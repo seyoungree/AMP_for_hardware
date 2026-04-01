@@ -160,7 +160,7 @@ class A1AMPCfgPPO( LeggedRobotCfgPPO ):
 
         amp_reward_coef = 2.0
         amp_motion_files = MOTION_FILES
-        amp_num_preload_transitions = 2000000
+        amp_num_preload_transitions = 10000
         amp_task_reward_lerp = 0.3
         amp_discr_hidden_dims = [1024, 512]
 

@@ -30,6 +30,8 @@
 
 from legged_gym import LEGGED_GYM_ROOT_DIR, LEGGED_GYM_ENVS_DIR
 from legged_gym.envs.a1.a1_config import A1RoughCfg, A1RoughCfgPPO
+from legged_gym.envs.go1.go1_amp_config import GO1AMPCfg, GO1AMPCfgPPO
+from legged_gym.envs.go1.go1_config import GO1RoughCfg, GO1RoughCfgPPO
 from .base.legged_robot import LeggedRobot
 from .a1.a1_config import A1RoughCfg, A1RoughCfgPPO
 from .a1.a1_amp_config import A1AMPCfg, A1AMPCfgPPO
@@ -41,3 +43,6 @@ from legged_gym.utils.task_registry import task_registry
 
 task_registry.register( "a1", LeggedRobot, A1RoughCfg(), A1RoughCfgPPO() )
 task_registry.register( "a1_amp", LeggedRobot, A1AMPCfg(), A1AMPCfgPPO() )
+task_registry.register( "go1", LeggedRobot, GO1RoughCfg(), GO1RoughCfgPPO() )
+task_registry.register( "go1_amp", LeggedRobot, GO1AMPCfg(), GO1AMPCfgPPO() )
+
