@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import mujoco
 import mujoco.viewer
-
+import imageio
 
 class Config:
     sim_dt = 0.005
@@ -118,6 +118,7 @@ class SimForwardTest:
         self.model = mujoco.MjModel.from_xml_path(xml_path)
         self.data = mujoco.MjData(self.model)
         self.model.opt.timestep = cfg.sim_dt
+        
 
         self.joint_qpos_addrs = []
         self.joint_dof_addrs = []
@@ -261,17 +262,25 @@ class SimForwardTest:
                 viewer.cam.azimuth = 90
                 viewer.cam.elevation = -20
 
+                renderer = mujoco.Renderer(self.model, width=640, height=480)
+                video = imageio.get_writer("go2_mujoco.mp4", fps=int(1/self.cfg.sim_dt))
+
                 while viewer.is_running():
                     motiontime += 1
                     sim_time = motiontime * self.cfg.sim_dt
                     self.step_control(sim_time)
                     mujoco.mj_step(self.model, self.data)
 
+                    renderer.update_scene(self.data)
+                    frame = renderer.render()
+                    video.append_data(frame)
+
                     viewer.cam.lookat[:] = self.data.qpos[:3]
                     viewer.sync()
 
                     if motiontime % int(round(0.5 / self.cfg.sim_dt)) == 0:
                         self.print_status(sim_time)
+                video.close()
 
 
 if __name__ == "__main__":
