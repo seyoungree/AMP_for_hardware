@@ -1,7 +1,7 @@
 import numpy as np
 from legged_gym import LEGGED_GYM_ROOT_DIR
 
-VISUALIZE_RETARGETING = False
+VISUALIZE_RETARGETING = True
 
 URDF_FILENAME = (
     "{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/urdf/go2.urdf".format(
